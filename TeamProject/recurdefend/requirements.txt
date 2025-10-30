@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+transformers>=4.30
+datasets
+torch
+scikit-learn
+pandas
+jsonschema
+
+

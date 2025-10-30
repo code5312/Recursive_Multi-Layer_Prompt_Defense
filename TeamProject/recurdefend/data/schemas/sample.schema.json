@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RecurDefend Sample Schema",
+  "type": "object",
+  "required": ["id", "prompt", "attack_label", "expected_action"],
+  "properties": {
+    "id": {"type": "string"},
+    "source": {"type": "string", "enum": ["human", "auto", "web"]},
+    "prompt": {"type": "string"},
+    "context": {"type": ["string", "null"]},
+    "attack_label": {
+      "type": "string",
+      "enum": ["none","ipi","jailbreak","target_deviation","tool_call_manipulation","other"]
+    },
+    "attack_subtype": {"type": ["string","null"]},
+    "severity": {"type": "string", "enum": ["low","medium","high"]},
+    "intent_target": {"type": ["string","null"]},
+    "expected_action": {"type": "string", "enum": ["allow","flag","block","correct"]},
+    "expected_corrected_prompt": {"type": ["string","null"]},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true
+}
