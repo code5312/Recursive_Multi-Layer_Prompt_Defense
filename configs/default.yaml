@@ -1,0 +1,159 @@
+# ===========================================
+# Default Configuration for recurdefend
+# Deep Defense Framework for LLaMA3 AI Agent
+# ===========================================
+
+project:
+  name: "recurdefend"
+  version: "1.0.0"
+  description: "Recursive CoT & Cross-Correction Defense Framework for LLaMA3"
+  author: "AI Security Team - Gachon Univ."
+  created_at: "2025-11-03"
+
+# ------------------------------
+# Core Model (LLaMA3) Settings
+# ------------------------------
+model:
+  name: "llama3"
+  mode: "stub"        # [stub | local | api]
+  provider: "meta"    # model source
+  max_tokens: 1024
+  temperature: 0.2
+  top_p: 0.9
+  seed: 42
+  deterministic: true
+  reasoning_trace: true    # whether to store CoT steps
+  endpoint: "http://localhost:8000/llama3"  # used only in api mode
+
+# ------------------------------
+# Lightweight Counter-Exploit (LCE)
+# ------------------------------
+lce:
+  input:
+    enabled: true
+    threshold: 0.6
+    model_type: "distilbert-base-uncased"
+    model_path: "models/input_lce/"
+    ruleset:
+      - "hidden_css"
+      - "zero_width_space"
+      - "meta_prompt"
+      - "encoded_payload"
+      - "external_instruction"
+  output:
+    enabled: true
+    threshold: 0.65
+    model_type: "roberta-base"
+    model_path: "models/output_lce/"
+    ruleset:
+      - "secret_leak"
+      - "policy_violation"
+      - "objective_shift"
+      - "malicious_tool_suggestion"
+
+# ------------------------------
+# Recursive CoT Controller
+# ------------------------------
+cot:
+  max_steps: 6
+  validator_threshold: 0.55
+  rollback_on_violation: true
+  reasoning_style: "chain_of_thought"
+  enable_trace_logging: true
+  early_stop: true
+  timeout_per_step_ms: 500
+
+# ------------------------------
+# Cross-Correction Module
+# ------------------------------
+cross_correction:
+  enabled: true
+  strategy: "re_prompt"          # [re_prompt | constrained_gen | reinforce]
+  max_retries: 2
+  stop_on_persistent_mismatch: true
+  similarity_metric: "cosine"
+  threshold_intent_similarity: 0.8
+  repair_prompt_template: |
+    The user's intent was: {{original_intent}}
+    The current output seems misaligned. Please adjust the answer to realign with the original goal without introducing new instructions.
+
+# ------------------------------
+# Tool Verifier
+# ------------------------------
+tool_verifier:
+  enabled: true
+  registry_path: "data/raw/toolspecs.json"
+  deny_on_schema_mismatch: true
+  rate_limit_fallback: true
+  log_tool_calls: true
+  check_parameters: true
+  enforce_roles: true
+  default_safe_params:
+    temperature: 0.0
+    retries: 1
+  alerts:
+    on_violation: "log_only"     # [log_only | block | repair]
+
+# ------------------------------
+# Logging & Runtime Policies
+# ------------------------------
+logging:
+  level: "INFO"
+  eventlog_path: "logs/runtime/"
+  file_rotation_mb: 10
+  keep_logs_days: 7
+  structured_json: true
+  show_traceback: false
+  anonymize_sensitive_data: true
+
+# ------------------------------
+# Security & Policy Flags
+# ------------------------------
+policy_flags:
+  allow_external_html: true
+  block_unknown_tools: true
+  enable_input_sanitization: true
+  mask_sensitive_outputs: true
+  safe_wordlist: ["user", "assistant", "response", "summary"]
+  restricted_keywords: ["system prompt", "root access", "developer note"]
+
+# ------------------------------
+# Evaluation Parameters
+# ------------------------------
+evaluation:
+  metrics:
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "bypass_rate"
+    - "alignment_success_rate"
+    - "latency_ms"
+  thresholds:
+    precision: 0.9
+    recall: 0.9
+    f1_score: 0.92
+    bypass_rate: 0.1
+    alignment_success_rate: 0.85
+    latency_ms: 700
+
+# ------------------------------
+# Docker / Deployment Settings
+# ------------------------------
+deployment:
+  docker_image: "recurdefend:latest"
+  compose_file: "docker/docker-compose.yml"
+  use_gpu: false
+  environment: "dev"        # [dev | test | prod]
+  port: 8000
+
+# ------------------------------
+# Paths & Artifacts
+# ------------------------------
+paths:
+  raw_data: "data/raw/"
+  processed_data: "data/processed/"
+  schemas: "data/schemas/"
+  experiments: "experiments/"
+  results: "results/"
+  models: "models/"
+  notebooks: "notebooks/"
