@@ -1,0 +1,14 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==1.10.15
+jsonschema==4.23.0
+scikit-learn==1.4.2
+joblib==1.4.2
+numpy==1.26.4
+scipy==1.11.4
+openai==1.51.0
+transformers==4.44.2
+torch>=2.2
+PyYAML==6.0.2
+streamlit==1.38.0
+pandas==2.2.3

@@ -1,0 +1,7 @@
+{
+  "num_cases": 67,
+  "alignment_success_rate": 0.0,
+  "f1_before": 0.9655,
+  "f1_after": 0.7706,
+  "delta_f1": -0.1949
+}

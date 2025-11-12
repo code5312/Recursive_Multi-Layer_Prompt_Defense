@@ -1,0 +1,31 @@
+app:
+  semver: "1.0.0"
+
+orchestrator:
+  enable_input_lce: true
+  enable_recursive_cot: true
+  enable_tool_verify: true
+  enable_cross_correction: true
+  enable_output_lce: true
+
+lce:
+  input:
+    model_path: "models/input_lce"
+    threshold: 0.60
+  output:
+    model_path: "models/output_lce"
+    threshold: 0.65
+
+cot:
+  max_steps: 5
+
+cross_correction:
+  threshold: 0.80
+
+tools:
+  specs_path: "data/raw/toolspecs.json"
+
+logging:
+  log_dir: "logs/runtime"
+  redact_keys: ["api_key", "token", "password"]
+  rotate_mb: 10

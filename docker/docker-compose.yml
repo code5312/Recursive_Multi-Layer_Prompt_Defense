@@ -1,0 +1,19 @@
+# docker/docker-compose.yml
+# run: cd docker
+# run: docker-compose up --build
+version: "3.9"
+services:
+  recurdefend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: recurdefend:latest
+    container_name: recurdefend
+    environment:
+      - RECURDEFEND_TOOLSPECS=/app/data/raw/toolspecs.json
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

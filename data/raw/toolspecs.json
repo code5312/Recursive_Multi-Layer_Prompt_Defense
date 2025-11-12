@@ -1,0 +1,28 @@
+[
+    {
+      "name": "weather",
+      "display_name": "Weather Forecast",
+      "version": "1.0.0",
+      "description": "도시/좌표 기반 현재 날씨 및 예보",
+      "endpoint": { "type": "http", "uri": "https://api.example.com/v1/weather", "method": "GET", "timeout_ms": 4000 },
+      "params": {
+        "city": { "type": "string", "required": false, "minLength": 1 },
+        "units": { "type": "string", "required": false, "enum": ["metric", "imperial"], "default": "metric" },
+        "api_key": { "type": "string", "required": true, "minLength": 10 }
+      },
+      "returns": { "content_type": "application/json", "summary": "온도/습도 등", "example": {"temp": 20.1} },
+      "policy": {
+        "min_role": "user",
+        "rate_limit_per_min": 30,
+        "allowed_callers": ["agent_orchestrator"],
+        "allow_network": true,
+        "safe_defaults": { "units": "metric" },
+        "redact_in_logs": ["api_key"],
+        "audit_log": true,
+        "retry_on_fail": 1,
+        "max_concurrency": 8,
+        "deny_on_schema_mismatch": true
+      }
+    }
+  ]
+  

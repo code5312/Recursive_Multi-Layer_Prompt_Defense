@@ -1,0 +1,259 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://recurdefend.ai/schemas/tool.schema.json",
+    "title": "RecurDefend Tool Specification",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "version", "endpoint", "params", "policy"],
+    "properties": {
+      "name": {
+        "description": "툴 식별자 (소문자, 숫자, 밑줄)",
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "minLength": 2,
+        "maxLength": 64
+      },
+      "display_name": {
+        "description": "사람이 읽기 쉬운 툴 이름",
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 128
+      },
+      "version": {
+        "description": "SemVer 규칙의 버전",
+        "type": "string",
+        "pattern": "^\\d+\\.\\d+\\.\\d+$"
+      },
+      "description": {
+        "description": "툴 목적/동작 설명",
+        "type": "string",
+        "maxLength": 2000
+      },
+  
+      "endpoint": {
+        "title": "툴 호출 엔드포인트",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "description": "엔드포인트 유형",
+            "type": "string",
+            "enum": ["internal", "http", "python"]
+          },
+          "uri": {
+            "description": "HTTP/Python 경로(예: https://..., module:function)",
+            "type": ["string", "null"]
+          },
+          "method": {
+            "description": "HTTP 메서드",
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "default": "POST"
+          },
+          "timeout_ms": {
+            "description": "호출 타임아웃(ms)",
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 120000,
+            "default": 5000
+          },
+          "headers": {
+            "description": "HTTP 헤더(선택)",
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "http" } } },
+            "then": { "required": ["uri", "method"] }
+          },
+          {
+            "if": { "properties": { "type": { "const": "python" } } },
+            "then": { "required": ["uri"] }
+          }
+        ]
+      },
+  
+      "params": {
+        "title": "파라미터 스키마(파라미터 이름별 정의)",
+        "type": "object",
+        "additionalProperties": false,
+        "patternProperties": {
+          "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "required"],
+            "properties": {
+              "description": { "type": "string", "maxLength": 1000 },
+              "type": {
+                "type": "string",
+                "enum": ["string", "integer", "number", "boolean", "object", "array"]
+              },
+              "required": { "type": "boolean" },
+              "enum": {
+                "description": "허용 값 목록(있을 경우만)",
+                "type": "array",
+                "items": { "type": ["string", "integer", "number", "boolean"] },
+                "minItems": 1
+              },
+              "minLength": { "type": "integer", "minimum": 0 },
+              "maxLength": { "type": "integer", "minimum": 1 },
+              "minimum": { "type": "number" },
+              "maximum": { "type": "number" },
+              "format": { "type": "string" },
+              "items": {
+                "description": "type=array일 때 원소 스키마",
+                "type": "object",
+                "additionalProperties": true
+              },
+              "properties": {
+                "description": "type=object일 때 속성 스키마",
+                "type": "object",
+                "additionalProperties": true
+              },
+              "default": {},
+              "example": {}
+            }
+          }
+        }
+      },
+  
+      "returns": {
+        "title": "반환값 사양(요약용, 검증은 런타임에서 선택적)",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "enum": ["application/json", "text/plain", "application/octet-stream"],
+            "default": "application/json"
+          },
+          "summary": { "type": "string", "maxLength": 1000 },
+          "example": {}
+        }
+      },
+  
+      "policy": {
+        "title": "보안/운영 정책",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["min_role", "rate_limit_per_min"],
+        "properties": {
+          "min_role": { "type": "string", "enum": ["guest", "user", "admin"], "default": "user" },
+          "rate_limit_per_min": { "type": "integer", "minimum": 0, "default": 60 },
+          "allowed_callers": {
+            "description": "허용된 호출 주체(옵션). 비어있으면 모두 허용.",
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "allow_network": {
+            "description": "툴 내부에서 네트워크 접근 허용 여부",
+            "type": "boolean",
+            "default": true
+          },
+          "safe_defaults": {
+            "description": "취약 파라미터에 강제 적용할 안전 기본값",
+            "type": "object",
+            "additionalProperties": true
+          },
+          "redact_in_logs": {
+            "description": "로그에서 마스킹할 파라미터 이름 목록(예: api_key)",
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true,
+            "default": []
+          },
+          "audit_log": {
+            "description": "호출 내용을 이벤트 로그에 구조화 기록",
+            "type": "boolean",
+            "default": true
+          },
+          "retry_on_fail": {
+            "description": "실패 시 재시도 횟수",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "default": 0
+          },
+          "max_concurrency": {
+            "description": "동시 호출 제한(0은 무제한)",
+            "type": "integer",
+            "minimum": 0,
+            "default": 4
+          }
+        }
+      }
+    },
+  
+    "examples": [
+      {
+        "name": "weather",
+        "display_name": "Weather Forecast",
+        "version": "1.0.0",
+        "description": "도시/좌표 기반 현재 날씨 및 예보 조회",
+        "endpoint": {
+          "type": "http",
+          "uri": "https://api.example.com/v1/weather",
+          "method": "GET",
+          "timeout_ms": 4000
+        },
+        "params": {
+          "city": { "type": "string", "required": false, "minLength": 1, "example": "Seoul" },
+          "lat": { "type": "number", "required": false, "minimum": -90, "maximum": 90 },
+          "lon": { "type": "number", "required": false, "minimum": -180, "maximum": 180 },
+          "units": { "type": "string", "required": false, "enum": ["metric", "imperial"], "default": "metric" },
+          "api_key": { "type": "string", "required": true, "minLength": 10 }
+        },
+        "returns": {
+          "content_type": "application/json",
+          "summary": "온도/습도/상태 코드 등 JSON",
+          "example": { "temp": 19.2, "humidity": 55, "desc": "Cloudy" }
+        },
+        "policy": {
+          "min_role": "user",
+          "rate_limit_per_min": 30,
+          "allowed_callers": [],
+          "allow_network": true,
+          "safe_defaults": { "units": "metric" },
+          "redact_in_logs": ["api_key"],
+          "audit_log": true,
+          "retry_on_fail": 1,
+          "max_concurrency": 8
+        }
+      },
+      {
+        "name": "calendar",
+        "display_name": "Calendar Quick Add",
+        "version": "1.2.0",
+        "description": "텍스트 기반 일정 추가(내부 서비스, 네트워크 불필요)",
+        "endpoint": {
+          "type": "internal",
+          "timeout_ms": 2000
+        },
+        "params": {
+          "text": { "type": "string", "required": true, "minLength": 3, "maxLength": 200 },
+          "notify": { "type": "boolean", "required": false, "default": false }
+        },
+        "returns": {
+          "content_type": "application/json",
+          "summary": "추가된 이벤트 ID/시간 정보",
+          "example": { "event_id": "evt_12345", "start": "2025-11-05T09:00:00+09:00" }
+        },
+        "policy": {
+          "min_role": "user",
+          "rate_limit_per_min": 120,
+          "allowed_callers": ["agent_orchestrator"],
+          "allow_network": false,
+          "safe_defaults": { "notify": false },
+          "redact_in_logs": [],
+          "audit_log": true,
+          "retry_on_fail": 0,
+          "max_concurrency": 20
+        }
+      }
+    ]
+  }
+  

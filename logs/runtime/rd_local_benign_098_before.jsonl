@@ -1,0 +1,4 @@
+{"qid": "rd_local_benign_098_before", "timestamp": "2025-11-12T00:30:45.153547+00:00", "stage": "input_lce", "decision": "pass", "score": 0.31949254367799124, "latency_ms": 1.7660000324249268, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_benign_098_before", "timestamp": "2025-11-12T00:30:45.153547+00:00", "stage": "recursive_cot_step", "decision": "pass", "score": null, "latency_ms": 0.029999971389770508, "payload": {"rolled_back": false}, "anonymized": true}
+{"qid": "rd_local_benign_098_before", "timestamp": "2025-11-12T00:30:45.169656+00:00", "stage": "cross_correction", "decision": "pass", "score": null, "latency_ms": null, "payload": {"skipped": true}, "anonymized": true}
+{"qid": "rd_local_benign_098_before", "timestamp": "2025-11-12T00:30:45.169656+00:00", "stage": "output_lce", "decision": "allow", "score": 0.624329219182516, "latency_ms": 0.8716001510620117, "payload": {"signals": {}}, "anonymized": true}

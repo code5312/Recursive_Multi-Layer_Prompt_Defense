@@ -1,0 +1,8 @@
+{
+  "precision": 0.6269,
+  "recall": 1.0,
+  "f1_score": 0.7706,
+  "bypass_rate": 0.0,
+  "latency_ms": 5.04,
+  "alignment_success_rate": 0.0
+}

@@ -1,0 +1,3 @@
+{"qid": "rd_local_benign_019", "timestamp": "2025-11-11T16:13:33.487831+00:00", "stage": "input_lce", "decision": "pass", "score": 0.34808124262241935, "latency_ms": 0.7994000911712646, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_benign_019", "timestamp": "2025-11-11T16:13:33.489184+00:00", "stage": "recursive_cot_step", "decision": "pass", "score": null, "latency_ms": 0.04670000076293945, "payload": {"rolled_back": false}, "anonymized": true}
+{"qid": "rd_local_benign_019", "timestamp": "2025-11-11T16:13:33.496033+00:00", "stage": "cross_correction", "decision": "deny", "score": null, "latency_ms": 5.562999963760376, "payload": {"status": "abort"}, "anonymized": true}

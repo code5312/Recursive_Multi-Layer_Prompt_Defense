@@ -1,0 +1,1 @@
+{"qid": "rd_local_attack_053", "timestamp": "2025-11-11T16:13:33.412942+00:00", "stage": "input_lce", "decision": "deny", "score": 0.8046517369138871, "latency_ms": 1.8559000492095947, "payload": {"signals": {}}, "anonymized": true}

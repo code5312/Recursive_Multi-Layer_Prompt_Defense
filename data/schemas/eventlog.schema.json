@@ -1,0 +1,134 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://recurdefend.ai/schemas/eventlog.schema.json",
+    "title": "RecurDefend Runtime Event Log",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["qid", "timestamp", "stage", "payload"],
+    "properties": {
+      "qid": {
+        "description": "질의/세션 식별자(예: UUID)",
+        "type": "string",
+        "minLength": 8
+      },
+      "timestamp": {
+        "description": "이벤트 발생 시각 (ISO 8601)",
+        "type": "string",
+        "format": "date-time"
+      },
+      "stage": {
+        "description": "파이프라인 단계",
+        "type": "string",
+        "enum": [
+          "input_lce",
+          "recursive_cot_step",
+          "tool_verify",
+          "cross_correction",
+          "output_lce"
+        ]
+      },
+      "decision": {
+        "description": "해당 단계의 최종 의사결정",
+        "type": ["string", "null"],
+        "enum": ["allow", "deny", "rollback", "repair", "pass", null]
+      },
+      "score": {
+        "description": "리스크/유사도 등 단계별 수치(없을 수 있음)",
+        "type": ["number", "null"]
+      },
+      "latency_ms": {
+        "description": "해당 단계 처리 지연(ms)",
+        "type": ["number", "null"],
+        "minimum": 0
+      },
+      "trace_id": {
+        "description": "동일 질의 내 이벤트 시퀀스 추적용(ID 또는 증가 번호)",
+        "type": ["string", "integer"]
+      },
+      "step_index": {
+        "description": "재귀 CoT 단계 인덱스(해당 시)",
+        "type": ["integer", "null"],
+        "minimum": 0
+      },
+      "tool_name": {
+        "description": "툴 검증 단계일 때 툴 이름",
+        "type": ["string", "null"]
+      },
+      "anonymized": {
+        "description": "민감정보 마스킹 여부",
+        "type": "boolean",
+        "default": true
+      },
+      "model_info": {
+        "description": "해당 단계에서 사용한 모델/버전/설정",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "temperature": { "type": ["number", "null"] },
+          "max_tokens": { "type": ["integer", "null"] }
+        }
+      },
+      "policy_flags": {
+        "description": "당시 활성화된 정책 플래그 스냅샷(선택)",
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "integer" }
+          ]
+        }
+      },
+      "error": {
+        "description": "오류 발생 시 코드/메시지",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      },
+      "payload": {
+        "description": "단계별 컨텍스트 페이로드(민감정보 금지: 이미 마스킹된 값만 허용)",
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "signals": { "type": "object" },
+          "reason": { "type": "string" },
+          "patched_args": { "type": ["object", "null"] },
+          "rolled_back": { "type": ["boolean", "null"] }
+        }
+      }
+    },
+    "examples": [
+      {
+        "qid": "8f1c3f1c-6a2d-4d1a-ae7a-1c9b1b2c3d4e",
+        "timestamp": "2025-11-03T03:15:10Z",
+        "stage": "input_lce",
+        "decision": "pass",
+        "score": 0.18,
+        "latency_ms": 12.4,
+        "trace_id": 1,
+        "anonymized": true,
+        "model_info": { "name": "distilbert-input-lce", "version": "1.0.0", "temperature": null, "max_tokens": null },
+        "payload": { "signals": { "hidden_css": 0, "zero_width_space": 0 } }
+      },
+      {
+        "qid": "8f1c3f1c-6a2d-4d1a-ae7a-1c9b1b2c3d4e",
+        "timestamp": "2025-11-03T03:15:11Z",
+        "stage": "tool_verify",
+        "decision": "deny",
+        "score": null,
+        "latency_ms": 3.1,
+        "trace_id": 5,
+        "tool_name": "calendar",
+        "model_info": { "name": null, "version": null, "temperature": null, "max_tokens": null },
+        "payload": { "reason": "schema_mismatch", "patched_args": null }
+      }
+    ]
+  }
+  
