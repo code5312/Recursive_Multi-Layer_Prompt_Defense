@@ -1,54 +1,108 @@
 # src/lce/input_lce.py
 from __future__ import annotations
-import os, re, json
-from typing import Any, Dict, Optional
 from pathlib import Path
+from typing import Any, Dict, List
 
-try:
-    import joblib
-except ImportError:
-    joblib = None
+import joblib
+import re
 
-HIDDEN_CSS = re.compile(r"display\s*:\s*none", re.I)
-ZERO_WIDTH = re.compile(r"\u200B|\u200C|\u200D|\u2060")
-META_PROMPT = re.compile(r"(ignore\s+user|system\s+prompt|developer\s+note)", re.I)
-ENCODED = re.compile(r"base64|eval\(|decode", re.I)
 
 class InputLCE:
     """
-    ML 모델이 있으면 사용(joblib), 없으면 룰 기반으로 score/label 산출.
-    모델은 텍스트( user_text + context_html )를 입력으로 받는 TF-IDF + 선형모델을 가정.
+    하이브리드 입력 LCE:
+      1) 규칙 기반 시그니처 검사 (강한 필터)
+      2) ML 모델 (TF-IDF + LR)
+    규칙에 걸리면 무조건 risk, 아니면 모델 결과 사용.
     """
-    def __init__(self, model_path: str = "models/input_lce", threshold: float = 0.6):
-        self.model_path = Path(model_path)
-        self.threshold = threshold
-        self.model = None
-        if joblib and (self.model_path / "model.joblib").exists():
-            try:
-                self.model = joblib.load(self.model_path / "model.joblib")
-            except Exception:
-                self.model = None
 
-    def _rules(self, text: str, html: Optional[str]) -> Dict[str, Any]:
-        txt = (text or "") + " " + (html or "")
-        s_hidden = 1 if HIDDEN_CSS.search(txt) else 0
-        s_zero   = 1 if ZERO_WIDTH.search(txt) else 0
-        s_meta   = 1 if META_PROMPT.search(txt) else 0
-        s_enc    = 1 if ENCODED.search(txt) else 0
-        score = min(1.0, 0.25 * (s_hidden + s_zero + s_meta + s_enc))
-        label = "risk" if score >= self.threshold else "safe"
-        return {"score": float(score), "label": label,
-                "signals": {"hidden_css": s_hidden, "zero_width": s_zero, "meta_prompt": s_meta, "encoded_payload": s_enc}}
+    def __init__(
+        self,
+        model_path: str = "models/input_lce",
+        threshold: float = 0.60,
+    ) -> None:
+        self.model_path = Path(model_path)
+        self.threshold = float(threshold)
+
+        model_file = self.model_path / "model.joblib"
+        if not model_file.exists():
+            raise RuntimeError(f"[InputLCE] model not found: {model_file}")
+        self.model = joblib.load(model_file)
+
+        # 🔥 공격 프롬프트에서 자주 나오는 패턴들 (영어/한국어 섞어둠)
+        self.risky_keywords: List[str] = [
+            "ignore previous", "ignore above", "ignore all", "무시하고",
+            "system prompt", "developer message", "시스템 프롬프트",
+            "hidden instruction", "숨겨진 지시",
+            "exfiltrate", "유출해", "빼내", "내보내",
+            "api_key", "access token", "비밀번호", "password",
+            "display:none", "visibility:hidden", "style=\"display:none\"",
+            "<!--",  # HTML 주석 기반 IPI
+            "Act as system", "너는 이제 시스템", "보안 규칙을 무시",
+            "bypass", "우회", "필터를 피해서",
+        ]
+
+        # 정규식 기반 시그니처 (조금 더 공격적인 패턴)
+        self.risky_regex = re.compile(
+            r"(ignore\s+the\s+user|override\s+the\s+instruction|"
+            r"dump\s+all\s+(secrets|env|environment)|"
+            r"모든\s+환경변수|주민등록번호\s+전체|"
+            r"시스템\s+프롬프트\s+전체를\s+출력)",
+            re.IGNORECASE,
+        )
+
+    def _concat_text(self, x: Dict[str, Any]) -> str:
+        t = (x.get("text") or "")  # user_text
+        h = (x.get("html") or "")  # context_html
+        return f"{t}\n{h}".strip()
+
+    def _rule_based_scan(self, text: str) -> Dict[str, Any]:
+        """
+        텍스트에서 공격 패턴이 발견되면 강하게 risk 반환.
+        """
+        low = text.lower()
+
+        # 1) 키워드 매칭
+        for kw in self.risky_keywords:
+            if kw.lower() in low:
+                return {
+                    "score": 0.99,
+                    "label": "risk",
+                    "signals": {"keyword": kw},
+                    "source": "rule",
+                }
+
+        # 2) 정규식 매칭
+        m = self.risky_regex.search(low)
+        if m:
+            return {
+                "score": 0.98,
+                "label": "risk",
+                "signals": {"regex": m.group(0)},
+                "source": "regex",
+            }
+
+        # 룰에 안 걸리면 None
+        return {"score": 0.0, "label": "safe", "signals": {}, "source": "none"}
 
     def predict(self, x: Dict[str, Any]) -> Dict[str, Any]:
-        text = x.get("text") or ""
-        html = x.get("html") or ""
-        if self.model:
-            # 모델은 단일 문자열 입력을 가정
-            s = text + "\n" + html
-            prob = self.model.predict_proba([s])[0][1] if hasattr(self.model, "predict_proba") else float(self.model.decision_function([s])[0])
-            # decision_function은 스케일 다를 수 있어 sigmoid 대체 가능. 여기선 간단히 0..1 clip
-            score = max(0.0, min(1.0, float(prob)))
-            label = "risk" if score >= self.threshold else "safe"
-            return {"score": score, "label": label, "signals": {}}
-        return self._rules(text, html)
+        """
+        Orchestrator에서 호출되는 메인 엔트리.
+        x = {"text": user_text, "html": context_html}
+        """
+        text = self._concat_text(x)
+
+        # 1) 규칙 기반 먼저
+        rule_res = self._rule_based_scan(text)
+        if rule_res["label"] == "risk":
+            return rule_res
+
+        # 2) ML 모델 점수
+        prob = self.model.predict_proba([text])[0][1]  # class=1 (attack) 확률
+        label = "risk" if prob >= self.threshold else "safe"
+
+        return {
+            "score": float(prob),
+            "label": label,
+            "signals": {"ml_prob": float(prob)},
+            "source": "ml",
+        }

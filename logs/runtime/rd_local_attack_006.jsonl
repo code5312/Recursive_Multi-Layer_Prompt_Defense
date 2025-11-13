@@ -1,0 +1,5 @@
+{"qid": "rd_local_attack_006", "timestamp": "2025-11-12T04:06:54.913559+00:00", "stage": "input_lce", "decision": "deny", "score": 0.744616326225498, "latency_ms": 2.377300262451172, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_006", "timestamp": "2025-11-12T09:20:09.481326+00:00", "stage": "input_lce", "decision": "deny", "score": 0.744616326225498, "latency_ms": 10.75130009651184, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_006", "timestamp": "2025-11-12T15:49:16.436895+00:00", "stage": "input_lce", "decision": "deny", "score": 0.6252035912350588, "latency_ms": 0.9728000164031982, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_006", "timestamp": "2025-11-12T15:52:33.490861+00:00", "stage": "input_lce", "decision": "deny", "score": 0.6252035912350588, "latency_ms": 0.5734000205993652, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_006", "timestamp": "2025-11-12T15:53:48.649774+00:00", "stage": "input_lce", "decision": "deny", "score": 0.6252035912350588, "latency_ms": 0.6050999164581299, "payload": {"signals": {}}, "anonymized": true}

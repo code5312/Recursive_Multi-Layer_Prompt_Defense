@@ -1,1 +1,3 @@
 {"qid": "rd_local_attack_071", "timestamp": "2025-11-11T16:13:33.420960+00:00", "stage": "input_lce", "decision": "deny", "score": 0.8200481743733733, "latency_ms": 1.3562002182006836, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_071", "timestamp": "2025-11-12T02:51:36.874219+00:00", "stage": "input_lce", "decision": "deny", "score": 0.8200481743733733, "latency_ms": 0.4038999080657959, "payload": {"signals": {}}, "anonymized": true}
+{"qid": "rd_local_attack_071", "timestamp": "2025-11-12T15:57:29.828574+00:00", "stage": "input_lce", "decision": "deny", "score": 0.8420845541382029, "latency_ms": 0.439500093460083, "payload": {"signals": {}}, "anonymized": true}

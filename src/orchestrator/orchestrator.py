@@ -138,24 +138,30 @@ class Orchestrator:
                 self.cfg.get("orchestrator.enable_output_lce", True),
             ))
 
+            very_high = float(self.cfg.get("orchestrator.very_high_risk", 0.90))
+
+            # 초기 상태
+            rolled_back = False
+            final_text = req.user_text
+            trace: List[Dict[str, Any]] = []
+            in_res: Dict[str, Any] = {"label": "safe", "score": 0.0, "signals": {}}
+            out_res: Dict[str, Any] = {"label": "safe", "score": 0.0, "signals": {}}
+            status = "ok"
 
             # =========================================================
-            # 1) 입력 LCE (Input LCE)
+            # 1) 입력 LCE (Input LCE) — 즉시 차단하지 않고 기록만
             # =========================================================
             if enable_input_lce:
                 s = _now_ms()
-                # req.context_html은 IPI 공격 탐지 시 중요한 신호가 될 수 있음
                 in_res = self.input_lce.predict({"text": req.user_text, "html": req.context_html})
                 self.log.event(
                     qid=qid,
                     stage="input_lce",
-                    decision="pass" if in_res.get("label") == "safe" else "deny",
+                    decision=("pass" if in_res.get("label") == "safe" else "flag"),
                     score=float(in_res.get("score")) if in_res.get("score") is not None else None,
                     payload={"signals": in_res.get("signals", {})},
                     latency_ms=_elapsed_ms(s),
                 )
-                if in_res.get("label") != "safe":
-                    return self._deny(req, reason="IPI suspected by Input LCE", t0=t0)
             else:
                 self.log.event(qid=qid, stage="input_lce", decision="pass", payload={"skipped": True})
 
@@ -167,6 +173,7 @@ class Orchestrator:
                 cot_out = self.cot.run(req.user_text, context_html=req.context_html)
                 rolled_back = bool(cot_out.get("rolled_back", False))
                 trace = cot_out.get("trace", [])
+                final_text = cot_out.get("final_text", final_text)
                 self.log.event(
                     qid=qid,
                     stage="recursive_cot_step",
@@ -174,10 +181,7 @@ class Orchestrator:
                     payload={"rolled_back": rolled_back},
                     latency_ms=_elapsed_ms(s),
                 )
-                final_text = cot_out.get("final_text", "") # LLM의 최종 응답
             else:
-                cot_out = {"final_text": req.user_text, "trace": [], "rolled_back": False}
-                final_text = req.user_text
                 self.log.event(qid=qid, stage="recursive_cot_step", decision="pass", payload={"skipped": True})
 
             # =========================================================
@@ -185,10 +189,8 @@ class Orchestrator:
             # =========================================================
             tool_calls = _extract_tool_calls(trace)
             if enable_tool_verify and tool_calls:
-                
                 for call in tool_calls:
                     s = _now_ms()
-                    # 사용자 컨텍스트 구성
                     user_ctx = {
                         "allowed": req.tools_allowed,
                         "role": req.opts.get("role", "user"),
@@ -207,13 +209,12 @@ class Orchestrator:
                         },
                         latency_ms=_elapsed_ms(s),
                     )
-                    
+
                     if not vr.get("allow", False):
-                        # 정책: deny면 롤백 또는 패치 경로로 회귀 (재귀적 수정 유도)
                         s2 = _now_ms()
                         cot_out = self.cot.rollback_or_patch(call, vr)
                         trace = cot_out.get("trace", trace)
-                        final_text = cot_out.get("final_text", final_text) # 수정된 최종 텍스트 반영
+                        final_text = cot_out.get("final_text", final_text)
                         rolled_back = True
                         self.log.event(
                             qid=qid,
@@ -222,28 +223,20 @@ class Orchestrator:
                             payload={"rolled_back": True, "reason": "tool_denied"},
                             latency_ms=_elapsed_ms(s2),
                         )
-                        # tool verify에 의해 롤백이 발생하면 루프를 종료하고 Cross-Correction으로 이동
-                        break 
-                
-                # 롤백이 발생했으면 cot_out에서 final_text를 다시 가져옴 (이미 위에서 반영됨)
-                # final_text = cot_out.get("final_text", final_text) 
-
+                        break
             elif not enable_tool_verify:
                 self.log.event(qid=qid, stage="tool_verify", decision="allow", payload={"skipped": True})
-            
+
             # =========================================================
             # 3) Cross-Correction (의도 정렬)
             # =========================================================
-            fixed_text = final_text # CoT 결과 또는 입력 텍스트로 초기화
-            
+            fixed_text = final_text
             if enable_cross_correction:
                 s = _now_ms()
-                # LLM이 생성한 final_text를 user_text의 의도와 비교
                 intent_in = self.intent_parser.parse(req.user_text)
                 align_res = self.aligner.align(intent_in, final_text, trace)
-                status = align_res.get("status")  # "ok" | "repaired" | "abort"
-                fixed_text = align_res.get("output", final_text) # 수정된 텍스트 반영
-                
+                status = align_res.get("status", "ok")  # "ok" | "repaired" | "abort"
+                fixed_text = align_res.get("output", final_text)
                 self.log.event(
                     qid=qid,
                     stage="cross_correction",
@@ -254,12 +247,10 @@ class Orchestrator:
                 if status == "abort":
                     return self._deny(req, reason="objective mismatch unresolved", t0=t0)
             else:
-                status = "ok"
                 self.log.event(qid=qid, stage="cross_correction", decision="pass", payload={"skipped": True})
 
-
             # =========================================================
-            # 4) 출력 LCE (Output LCE)
+            # 4) 출력 LCE (Output LCE) — 평가만, 즉시 차단하지 않음
             # =========================================================
             if enable_output_lce:
                 s = _now_ms()
@@ -267,21 +258,28 @@ class Orchestrator:
                 self.log.event(
                     qid=qid,
                     stage="output_lce",
-                    decision="allow" if out_res.get("label") == "safe" else "deny",
+                    decision=("allow" if out_res.get("label") == "safe" else "flag"),
                     score=float(out_res.get("score")) if out_res.get("score") is not None else None,
                     payload={"signals": out_res.get("signals", {})},
                     latency_ms=_elapsed_ms(s),
                 )
-                if out_res.get("label") != "safe":
-                    return self._deny(req, reason="policy/leakage risk by Output LCE", t0=t0)
             else:
                 self.log.event(qid=qid, stage="output_lce", decision="allow", payload={"skipped": True})
 
             # =========================================================
+            # 5) 합의 게이팅: (입력 risk ∧ 출력 risk) ∨ (각각 very_high 초과)
+            # =========================================================
+            risk_in  = (in_res.get("label")  != "safe") if enable_input_lce  else False
+            risk_out = (out_res.get("label") != "safe") if enable_output_lce else False
+            s_in  = float(in_res.get("score")  or 0.0)
+            s_out = float(out_res.get("score") or 0.0)
+
+            if (risk_in and risk_out) or (s_in >= very_high) or (s_out >= very_high):
+                return self._deny(req, reason="lce/aligner joint decision", t0=t0)
+
+            # =========================================================
             # 최종 응답 생성 (OK or REPAIRED)
             # =========================================================
-            # rolled_back: Tool Verify에 의한 CoT 롤백
-            # status == "repaired": Cross-Correction에 의한 텍스트 수정
             status_out = "repaired" if (rolled_back or status == "repaired") else "ok"
             resp = OrchestratorResponse(
                 id=qid,
@@ -297,10 +295,9 @@ class Orchestrator:
             return resp
 
         except Exception as e:
-            # 에러를 로그로 남기고 안전 차단 (Fail-Safe)
             self.log.event(
                 qid=qid,
-                stage="system_exception", 
+                stage="system_exception",
                 decision="deny",
                 payload={"error": {"code": "E500", "message": str(e)}},
                 latency_ms=_elapsed_ms(t0),

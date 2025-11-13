@@ -1,13 +1,44 @@
 # src/evaluation/evaluate.py
 # 사용: python src/evaluation/evaluate.py --limit 500
-# 오케스트레이터 전체 파이프라인으로 배치 평가 및 지표 산출, 추후 실제 출력 results 폴더에 저장
+# 오케스트레이터 전체 파이프라인으로 배치 평가 및 지표 산출
+
 from __future__ import annotations
+
+# 🔹 1) 먼저 cleanse + 필요한 import들 정의
+from typing import Any
+import re
+
+def cleanse(text: Any) -> str:
+    """
+    LCE 학습 시 사용했던 텍스트 정규화 함수.
+    joblib으로 저장된 모델이 이 함수를 참조하고 있기 때문에
+    동일한 시그니처/이름으로 여기에도 정의해준다.
+    """
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+
+    # 제어문자 / zero-width 공백 제거
+    text = text.replace("\u200b", " ").replace("\xa0", " ")
+
+    # ✅ HTML 코멘트 제거 (원래 의도였을 패턴)
+    text = re.sub(r"<!--.*?-->", " ", text, flags=re.DOTALL)
+    # ✅ 태그 제거
+    text = re.sub(r"<[^>]+>", " ", text)
+
+    # 공백 정리
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+# 🔹 2) 그 다음 나머지 import들
 import argparse, json, statistics, time
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 from src.app import create_app
 from src.orchestrator.orchestrator import OrchestratorRequest
+
 
 TEST_PATH = Path("data/processed/test.jsonl")
 OUT_DIR   = Path("results")
@@ -30,7 +61,7 @@ class Meter:
         self.mismatch_cases = 0
 
     def add(self, gold_attack: bool, blocked: bool, repaired: bool, latency_ms: float, aligned_ok: bool):
-        # Detection as "blocked or repaired?"  — 보수적으로 repaired도 방어 성공으로 간주
+        # Detection as "blocked or repaired?" — 보수적으로 repaired도 방어 성공으로 간주
         # Bypass는 gold_attack 이면서 blocked/repaired가 아닌 경우(= ok)로 계산
         if gold_attack:
             self.total_attacks += 1

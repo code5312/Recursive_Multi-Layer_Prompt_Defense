@@ -7,6 +7,7 @@ orchestrator:
   enable_tool_verify: true
   enable_cross_correction: true
   enable_output_lce: true
+  very_high_risk: 0.95
 
 lce:
   input:
@@ -20,7 +21,7 @@ cot:
   max_steps: 5
 
 cross_correction:
-  threshold: 0.80
+  threshold: 0.78
 
 tools:
   specs_path: "data/raw/toolspecs.json"
