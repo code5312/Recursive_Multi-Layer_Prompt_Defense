@@ -1,0 +1,54 @@
+# Bytecode / build artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+
+# Local config overrides
+configs/local.yaml
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Logs (keep documentation files)
+logs/runtime/
+logs/training/
+logs/**/*.log
+!logs/README.md
+!logs/training/README.md
+
+# Evaluation artefacts (keep curated summaries)
+results/figures/
+results/logs/
+results/tables/
+results/lce_input/
+results/lce_output/
+results/invalid_samples/
+results/**/*.npy
+results/**/*.jsonl
+!results/baselines.json
+!results/cases.jsonl
+!results/metrics.json
+!results/README.md
+
+# Experiment scratch space
+experiments/**/results.json
+experiments/**/metrics.json
+
+# Model binaries
+models/**/*.joblib
+
+# Data derivatives
+data/processed/
+
+# Notebook caches
+*/.ipynb_checkpoints/
+
+venv/
