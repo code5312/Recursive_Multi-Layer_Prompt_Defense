@@ -1,6 +1,11 @@
 from __future__ import annotations
-import os, yaml
+
+import os
+from copy import deepcopy
 from typing import Any, Dict
+
+import yaml
+
 
 class Config:
     def __init__(self, data: Dict[str, Any]):
@@ -13,6 +18,10 @@ class Config:
                 return default
             cur = cur[k]
         return cur
+
+    def to_dict(self) -> Dict[str, Any]:
+        return deepcopy(self._data)
+
 
 def load_config() -> Config:
     path = os.getenv("RECURDEFEND_CONFIG", "configs/default.yaml")

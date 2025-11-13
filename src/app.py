@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .utils.config import load_config
+from .utils.config import Config, load_config
 from .io.logging import StructuredLogger
 from .tool_verifier.registry import ToolRegistry
 from .tool_verifier.verifier import RegistryToolVerifier
@@ -25,14 +25,12 @@ from .orchestrator.orchestrator import Orchestrator, DictConfig
 def create_app() -> FastAPI:
     # ----- 구성 로딩 (항상 dict 보장) -----
     try:
-        loaded = load_config()
-        if isinstance(loaded, dict):
-            cfg: Dict[str, Any] = loaded
-        else:
-            cfg = {}
+        config_obj = load_config()
     except Exception as e:
         print(f"[WARN] Failed to load config, using defaults: {e}")
-        cfg = {}
+        config_obj = Config({})
+
+    cfg: Dict[str, Any] = config_obj.to_dict()
 
     # 필요하다면 DictConfig 래핑 (or 그냥 cfg 그대로 사용)
     config = DictConfig(cfg)
