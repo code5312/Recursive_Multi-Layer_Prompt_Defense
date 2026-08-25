@@ -1,0 +1,22 @@
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ===== OS / Editor =====
+.DS_Store
+.vscode/
+.idea/
+
+# ===== 환경변수 =====
+.env
+
+# ===== 학습 데이터 / 모델 체크포인트 =====
+TeamProject/recurdefend/data/raw/
+TeamProject/recurdefend/data/processed/*.jsonl
+*.pt
+*.bin
